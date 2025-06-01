@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI News Generator </title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f0f2f5; color: #333; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; padding-top: 20px;}
+        .app-container { display: flex; width: 90%; max-width: 1200px; background-color: #fff; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; }
+        .sidebar { width: 280px; background-color: #2c3e50; color: white; padding: 20px; box-sizing: border-box; }
+        .main-content { flex-grow: 1; padding: 20px; box-sizing: border-box; overflow-y: auto; max-height: calc(100vh - 40px); }
+        .sidebar h2 { margin-top: 0; border-bottom: 1px solid #4a6178; padding-bottom: 10px; }
+        .sidebar button {
+            background-color: #3498db; color: white; padding: 12px 20px; border: none;
+            border-radius: 5px; cursor: pointer; font-size: 16px; width: 100%;
+            text-align: left; margin-bottom: 10px; transition: background-color 0.3s; display: block;
+        }
+        .sidebar button:hover { background-color: #2980b9; }
+        .sidebar button:disabled { background-color: #95a5a6; cursor: not-allowed; }
+        .sidebar .info { font-size: 0.9em; color: #bdc3c7; margin-top: 20px; line-height: 1.4; }
+        h1 { color: #2c3e50; text-align: center; margin-bottom: 20px; }
+        .results-section { margin-bottom: 25px; padding: 15px; background-color: #ecf0f1; border-radius: 5px; }
+        .results-section h2 { margin-top: 0; color: #2980b9; border-bottom: 1px solid #bdc3c7; padding-bottom: 8px;}
+        video { max-width: 100%; border: 1px solid #ddd; border-radius: 5px; background-color: #000; }
+        pre { background-color: #e9e9e9; padding: 10px; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; font-size: 0.9em; max-height: 200px; overflow-y: auto;}
+        .loader {
+            border: 6px solid #ecf0f1; border-top: 6px solid #3498db;
+            border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite;
+            margin: 30px auto; display: none;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .message-display { padding: 10px; border-radius: 4px; margin-top: 15px; text-align: center;}
+        .error-message { color: #c0392b; background-color: #fdd; border: 1px solid #c0392b; }
+        .warning-message { color: #f39c12; background-color: #fff0db; border: 1px solid #f39c12; }
+        .success-message { color: #27ae60; background-color: #e6ffe6; border: 1px solid #27ae60;}
+        a.download-button {
+            display: inline-block; background-color: #27ae60; color: white; padding: 8px 15px;
+            text-decoration: none; border-radius: 4px; margin-top: 10px; font-size: 0.9em;
+        }
+        a.download-button:hover { background-color: #229954; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="sidebar">
+            <h2>⚙️ Controls</h2>
+            <button id="generateButton">🚀 Generate News</button>
+            <div class="loader" id="loader"></div>
+        </div>
+        <div class="main-content">
+            <h1>📰 AI News Generator 🤖</h1>
+            <p style="text-align:center; margin-bottom:30px;">Automatically generates short news summary videos from trending articles.</p>
+            
+            <div id="messageArea"></div> <!-- For general messages -->
+
+            <div id="resultsDisplayArea" style="display:none;">
+                <div id="articleArea" class="results-section" style="display:none;">
+                    <h2>📰 Original Article</h2>
+                    <p><strong>Title:</strong> <span id="articleTitle"></span></p>
+                    <p><strong>Link:</strong> <a id="articleLink" href="#" target="_blank" rel="noopener noreferrer"></a></p>
+                </div>
+
+                <div id="scriptArea" class="results-section" style="display:none;">
+                    <h2>📜 Generated Script</h2>
+                    <pre id="scriptContent"></pre>
+                </div>
+
+                <div id="videoArea" class="results-section" style="display:none;">
+                    <h2>🎬 Generated Video</h2>
+                    <video id="videoPlayer" controls width="100%"></video>
+                    <br>
+                    <a id="downloadLink" href="#" download class="download-button" style="display:none;">⬇️ Download Video</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const generateBtn = document.getElementById('generateButton');
+        const loaderDiv = document.getElementById('loader');
+        const resultsDiv = document.getElementById('resultsDisplayArea');
+        const articleDiv = document.getElementById('articleArea');
+        const articleTitleSpan = document.getElementById('articleTitle');
+        const articleLinkAnchor = document.getElementById('articleLink');
+        const scriptDiv = document.getElementById('scriptArea');
+        const scriptContentPre = document.getElementById('scriptContent');
+        const videoDiv = document.getElementById('videoArea');
+        const videoPlayerEl = document.getElementById('videoPlayer');
+        const downloadLinkAnchor = document.getElementById('downloadLink');
+        const messageDiv = document.getElementById('messageArea');
+
+        generateBtn.addEventListener('click', async () => {
+            generateBtn.disabled = true;
+            loaderDiv.style.display = 'block';
+            resultsDiv.style.display = 'none'; 
+            articleDiv.style.display = 'none';
+            scriptDiv.style.display = 'none';
+            videoDiv.style.display = 'none';
+            downloadLinkAnchor.style.display = 'none';
+            messageDiv.innerHTML = ''; 
+
+            try {
+                const response = await fetch('/generate_video', { method: 'POST' });
+                // Check if response is OK (status in 200-299 range)
+                if (!response.ok) {
+                    let errorMsg = `Server error: ${response.status} ${response.statusText}`;
+                    try { // Try to get a JSON error message from the backend
+                        const errorData = await response.json();
+                        if (errorData && errorData.error_message) {
+                            errorMsg = `Pipeline Failed: ${errorData.error_message}`;
+                        }
+                    } catch (e) { /* Failed to parse JSON error, use default */ }
+                    throw new Error(errorMsg);
+                }
+                
+                const data = await response.json(); 
+
+                resultsDiv.style.display = 'block'; 
+
+                if (data.error_message && !data.success) {
+                     messageDiv.innerHTML = `<div class="message-display error-message">⛔ Pipeline Failed: ${data.error_message}</div>`;
+                } else {
+                    if (data.article_title) {
+                        articleTitleSpan.textContent = data.article_title;
+                        articleLinkAnchor.href = data.article_url;
+                        articleLinkAnchor.textContent = data.article_url;
+                        articleDiv.style.display = 'block';
+                    }
+                    if (data.script_points && Array.isArray(data.script_points)) {
+                        scriptContentPre.textContent = data.script_points.map((p, i) => `${i+1}. ${p}`).join('\n');
+                        scriptDiv.style.display = 'block';
+                    }
+                    if (data.success && data.video_url) {
+                        console.log("Video URL from server for <video> src:", data.video_url);
+                        videoPlayerEl.src = data.video_url; 
+                        videoPlayerEl.load(); 
+                        
+                        downloadLinkAnchor.href = data.video_url; 
+                        downloadLinkAnchor.download = data.actual_video_filename_for_download || "generated_video.mp4";
+                        downloadLinkAnchor.style.display = 'inline-block';
+                        videoDiv.style.display = 'block';
+                    }
+                     if (data.error_message && data.success) { 
+                        messageDiv.innerHTML += `<div class="message-display warning-message">⚠️ Heads up: ${data.error_message}</div>`;
+                    }
+                    if(data.success && !data.error_message && data.video_url){
+                        if (!messageDiv.innerHTML.includes("Heads up")) { 
+                           messageDiv.innerHTML = `<div class="message-display success-message">✅ Video generated successfully!</div>`;
+                        }
+                    } else if (data.success && !data.video_url && !data.error_message) {
+                         messageDiv.innerHTML = `<div class="message-display warning-message">⚠️ Pipeline seemed to succeed but no video URL was provided.</div>`;
+                    }
+                }
+            } catch (error) {
+                console.error('Fetch Error (JavaScript) or Error Thrown:', error);
+                messageDiv.innerHTML = `<div class="message-display error-message">${error.message || 'Connection error or server issue. Check browser console and terminal logs.'}</div>`;
+            } finally {
+                generateBtn.disabled = false;
+                loaderDiv.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
