@@ -1,0 +1,156 @@
+# AI NewsReel Generator
+
+This project is an AI-based application that automatically scraps trending news articles, generates a concise script, and then creates a short (30-60 second) video with text overlays and images based on that script. The application features a Flask-based web GUI for user interaction.
+
+## Features
+
+*   Fetches trending news articles using NewsAPI.
+*   Utilizes Google's Gemini API to generate a script from the article content.
+*   Sources relevant images from Pexels API based on script points.
+*   Generates Text-to-Speech (TTS) audio for the script using gTTS.
+*   Compiles a video using OpenCV for image/text processing and FFmpeg for audio/video merging and final encoding (H.264 for web compatibility).
+*   Provides a simple web interface built with Flask to trigger video generation and display results (article link, script, video).
+
+## Project Structure
+Use code with caution.
+Markdown
+AI_NewsReel_Flask_Project/
+├── app_flask.py # Main Flask application
+├── pipeline_logic.py # Core video generation pipeline logic
+├── config.py # API keys, model names, paths, settings
+├── news_fetcher.py # Fetches and parses news articles
+├── script_generator.py # Generates video scripts (using Gemini)
+├── asset_manager.py # Fetches images (Pexels) and generates TTS (gTTS)
+├── video_creator.py # Compiles video (OpenCV, Pillow, Pydub, FFmpeg)
+├── requirements.txt # Python package dependencies
+│
+├── templates/ # Folder for HTML templates
+│ └── index.html # Main HTML page for the UI
+│
+├── fonts/ # Folder for font files
+│ └── Roboto-Regular.ttf # Example font (must be added by user)
+│
+├── static/ # (Optional, for CSS/JS if you expand)
+│
+├── temp_images/ # Auto-created for temporary images
+├── temp_audio/ # Auto-created for temporary audio
+├── temp_videos_cv/ # Auto-created for intermediate silent videos
+└── generated_videos/ # Auto-created for final output videos
+## Prerequisites
+
+Before you can run this project, ensure you have the following installed and configured:
+
+1.  Python 3.9+
+2.  FFmpeg:
+    *   Download FFmpeg from [https://ffmpeg.org/download.html](https://ffmpeg.org/download.html) (a "release full" build is recommended, e.g., from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/)).
+    *   Extract it to a permanent location (e.g., `C:\ffmpeg`).
+    *   **Crucially, add the `bin` subfolder of your FFmpeg installation (e.g., `C:\ffmpeg\bin`) to your system's PATH environment variable.**
+    *   Verify by opening a **new** terminal and typing `ffmpeg -version`. You should see version information.
+3.  Git (optional, for cloning if you host it on a git repository).
+
+## Setup Instructions
+
+1.  Clone the Repository (if applicable) or Download Files:
+    If the project is on Git:
+    ```bash
+    git clone <repository_url>
+    cd AI_NewsReel_Flask_Project
+    ```
+    Otherwise, ensure all the provided Python files and folders are in your main project directory (`AI_NewsReel_Flask_Project`).
+
+2.  Create a Python Virtual Environment (Recommended):
+    ```bash
+    python -m venv venv
+    ```
+    Activate the virtual environment:
+    *   Windows (Command Prompt): `.\venv\Scripts\activate`
+    *   Windows (PowerShell): `.\venv\Scripts\Activate.ps1`
+    *   macOS/Linux: `source venv/bin/activate`
+
+3.  Install Python Dependencies:
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+4.  Obtain API Keys: You will need API keys for the following services:
+    *   NewsAPI: [https://newsapi.org/](https://newsapi.org/)
+    *   Pexels API: [https://www.pexels.com/api/](https://www.pexels.com/api/) (for images)
+    *   Google Gemini API: [https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
+
+5.  Configure API Keys:
+    *   Open the `config.py` file.
+    *   Replace the placeholder values (`"YOUR_NEWS_API_KEY"`, `"YOUR_PEXELS_API_KEY"`, `"YOUR_GEMINI_API_KEY"`) with your actual API keys.
+
+6.  Add Font File:
+    *   Create a folder named `fonts` inside your project directory (`AI_NewsReel_Flask_Project/fonts/`).
+    *   Download a `.ttf` font file. `Roboto-Regular.ttf` is recommended and assumed by `config.py`. You can get it from [Google Fonts](https://fonts.google.com/specimen/Roboto).
+    *   Place the `Roboto-Regular.ttf` file inside the `fonts` folder. If you use a different font, update `TEXT_FONT` in `config.py`.
+
+## Running the Application
+
+1.  Ensure all prerequisites and setup steps are complete. (Especially FFmpeg in PATH, API keys, and the font file).
+2.  Open a terminal or command prompt.
+3.  Navigate to your project directory:
+    ```bash
+    cd path/to/your/AI_NewsReel_Flask_Project
+    ```
+4.  Activate your virtual environment (if you created one).
+5.  Run the Flask application:
+    ```bash
+    python app_flask.py
+    ```
+6.  You will see output in the terminal indicating the Flask server is running, typically on `http://127.0.0.1:5000/` or `http://0.0.0.0:5000/`.
+7.  Open your web browser and navigate to `http://localhost:5000`.
+8.  Click the "🚀 Generate NewsReel" button to start the video generation process.
+9.  Monitor the terminal for processing logs. The web page will update with results.
+
+## How it Works (Pipeline)
+
+1.  Topic & Content Acquisition (`news_fetcher.py`):
+    *   Fetches top trending headlines from NewsAPI based on settings in `config.py`.
+    *   Uses `newspaper3k` to download and parse the article content from the selected URL.
+2.  Script Generation (`script_generator.py`):
+    *   Sends the extracted article text to the Google Gemini API.
+    *   Generates a concise script with a specified number of talking points.
+3.  Asset Generation (`asset_manager.py`):
+    *   Images: For each script point, keywords are extracted, and the Pexels API is queried for relevant images.
+    *   Audio: Each script point is converted to speech using Google Text-to-Speech (gTTS).
+4.  Video Compilation (`video_creator.py`):
+    *   Silent Video: OpenCV is used to create a silent video. Images are resized/cropped. Text (from script points) is overlaid onto images using the Pillow library.
+    *   Audio Concatenation: Pydub is used to concatenate all individual TTS audio files into a single master audio track.
+    *   Final Merge & Encoding: FFmpeg (called via Python's `subprocess`) merges the silent video with the master audio track. The final video is encoded to H.264 with the `moov` atom at the beginning for web compatibility (`-movflags +faststart`).
+5.  Web Interface (`app_flask.py` & `templates/index.html`):
+    *   A Flask web server handles requests.
+    *   `index.html` provides the user interface.
+    *   JavaScript in `index.html` makes an AJAX request to a Flask endpoint when the "Generate" button is clicked.
+    *   The Flask endpoint triggers the `pipeline_logic.py` orchestrator.
+    *   Results (article info, script, video URL) are sent back as JSON to the JavaScript, which then updates the web page.
+    *   A separate Flask route serves the generated video files from the `generated_videos` folder.
+
+## Troubleshooting Common Issues
+
+*   FileNotFoundError: [WinError 2] The system cannot find the file specified: 'ffmpeg'` (in terminal):
+    *   FFmpeg is not installed, or its `bin` directory is not in your system PATH. Re-check the FFmpeg prerequisite. Ensure you restart your terminal/IDE after modifying PATH.
+*   pydub warning: `Couldn't find ffmpeg or avconv...`:
+    *   Same as above – `pydub` relies on FFmpeg being in the PATH.
+*   Video shows blank in the web GUI, but downloads and plays:
+    *   This was addressed by ensuring `video_creator.py` uses FFmpeg to encode to H.264 with `-movflags +faststart`. If it still occurs, check your browser's developer console for media errors.
+*   UnicodeEncodeError when rendering text:
+    *   This usually means the font being used by Pillow (often its basic default if your specified `.ttf` fails to load) cannot handle certain characters (like em dashes —).
+    *   Solution: Ensure a valid, comprehensive `.ttf` font file (like `Roboto-Regular.ttf`) is correctly placed in your `fonts/` folder and that `config.py` points to it. Re-download the font if you suspect corruption.
+*   PillowFont: CRITICAL - Error loading font file ... unknown file format:
+    *   The `.ttf` file specified in `config.TEXT_FONT` (e.g., `fonts/Roboto-Regular.ttf`) is missing, corrupted, or not a valid font file. Re-download and replace it carefully.
+*   API Errors (e.g., 401 Unauthorized, 403 Forbidden, 429 Too Many Requests):
+    *   Double-check your API keys in `config.py` are correct and active.
+    *   You might have hit the usage limits for the free tiers of NewsAPI, Pexels, or Gemini.
+*   No content from <article_url>` or `Failed to extract usable content...:
+    *   `newspaper3k` was unable to parse the content from the fetched news articles. The script tries multiple articles, but if all fail, this error occurs. This can be due to website structure, anti-scraping measures, or very short articles.
+
+## Future Enhancements
+
+*   Allow user to input a news article URL directly.
+*   Provide options for different video styles/templates.
+*   More sophisticated image selection (e.g., using image content analysis).
+*   Choice of different TTS voices.
+*   Background task processing for video generation (e.g., using Celery) for a more responsive UI during long operations.
+*   Error logging to a file.

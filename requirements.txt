@@ -1,0 +1,10 @@
+requests
+newsapi-python
+newspaper3k
+google-generativeai
+gTTS
+Pillow>=9.2.0
+python-dotenv
+opencv-python
+pydub
+Flask
